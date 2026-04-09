@@ -13,6 +13,15 @@ class FileProcessorService:
         self.supported_extensions = {'.txt', '.md', '.pdf', '.docx', '.html', '.csv', '.jsonl'}
         self.max_file_size = 50 * 1024 * 1024  # 50MB
         self.timeout = 30
+        self._llm_extractor = None
+
+    @property
+    def llm_extractor(self):
+        """Lazy-init LLM extractor — only created when a PDF is processed."""
+        if self._llm_extractor is None:
+            from app.services.llm_extractor_service import LLMExtractorService
+            self._llm_extractor = LLMExtractorService()
+        return self._llm_extractor
     
     def process_file_urls_to_records(self, file_urls: List[str], base_record_id: str, base_metadata: Dict[str, Any]) -> List[Dict[str, Any]]:
         if not file_urls:
@@ -81,19 +90,19 @@ class FileProcessorService:
                 temp_file_path = temp_file.name
             
             try:
-                content = self._extract_content(temp_file_path, file_extension)
-                
+                content = self._extract_content(temp_file_path, file_extension, source_url=url)
+
                 # Si content es un generador, lo procesamos inmediatamente para evitar
                 # que el archivo temporal se elimine antes de poder leerlo
                 if inspect.isgenerator(content):
                     content = list(content)  # Convertir generador a lista
-                
+
                 metadata = {
                     "url": url,
                     "file_type": file_extension,
                     "content_type": content_type
                 }
-                
+
                 return content, metadata
             finally:
                 os.unlink(temp_file_path)
@@ -120,23 +129,36 @@ class FileProcessorService:
         
         return content_type_mapping.get(content_type, '.txt')
     
-    def _extract_content(self, file_path: str, file_extension: str) -> str:
+    def _extract_content(self, file_path: str, file_extension: str, source_url: str = None) -> str:
         if file_extension in {'.txt', '.md', '.html', '.jsonl'}:
             return self._read_text_in_chunks(file_path)
-        
+
         elif file_extension == '.pdf':
+            # Try LLM extraction first (if enabled via LLM_EXTRACTION_ENABLED=true)
+            if self.llm_extractor.is_enabled():
+                # 1. Try sending the URL directly (fastest, single API call)
+                if source_url:
+                    llm_text = self.llm_extractor.extract_from_url(source_url)
+                    if llm_text:
+                        return llm_text
+
+                # 2. Try sending the local file as base64 (fallback if URL fails)
+                llm_text = self.llm_extractor.extract_from_file(file_path)
+                if llm_text:
+                    return llm_text
+
+            # Fallback: PyPDF2 text extraction
             try:
                 import PyPDF2
                 with open(file_path, 'rb') as f:
                     reader = PyPDF2.PdfReader(f)
-                    text = ""
                     page_texts = []
-                    
+
                     for page_num, page in enumerate(reader.pages):
                         page_text = page.extract_text()
                         if page_text.strip():
                             page_texts.append(f"[Página {page_num + 1}]\n{page_text}")
-                    
+
                     text = "\n\n".join(page_texts)
                     return self._post_process_pdf_text(text)
             except ImportError:
