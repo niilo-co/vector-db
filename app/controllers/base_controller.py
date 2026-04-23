@@ -9,8 +9,8 @@ router = APIRouter(
 
 
 @router.post("/create_index/{provider_name}")
-async def create_index(provider_name: str, config: IndexConfig,
-                       vector_db_service: VectorDBServiceInterface = Depends()):
+def create_index(provider_name: str, config: IndexConfig,
+                 vector_db_service: VectorDBServiceInterface = Depends()):
     try:
         vector_db_service.create_index(provider_name, config)
         return {"message": f"Índice {config.index_name} creado exitosamente en {provider_name}"}
@@ -19,8 +19,8 @@ async def create_index(provider_name: str, config: IndexConfig,
 
 
 @router.post("/upsert_data/{provider_name}/{index_name}")
-async def upsert_data(provider_name: str, index_name: str, upsert_request: UpsertRequest,
-                      vector_db_service: VectorDBServiceInterface = Depends()):
+def upsert_data(provider_name: str, index_name: str, upsert_request: UpsertRequest,
+                vector_db_service: VectorDBServiceInterface = Depends()):
     try:
         vector_db_service.upsert_data(provider_name, index_name, upsert_request)
         return {"message": f"Datos insertados exitosamente en el índice {index_name} de {provider_name}"}
@@ -29,8 +29,8 @@ async def upsert_data(provider_name: str, index_name: str, upsert_request: Upser
 
 
 @router.post("/search/{provider_name}/{index_name}")
-async def search(provider_name: str, index_name: str, query_request: QueryRequest,
-                 vector_db_service: VectorDBServiceInterface = Depends()):
+def search(provider_name: str, index_name: str, query_request: QueryRequest,
+           vector_db_service: VectorDBServiceInterface = Depends()):
     try:
         results = vector_db_service.search(provider_name, index_name, query_request)
         return results
@@ -39,8 +39,8 @@ async def search(provider_name: str, index_name: str, query_request: QueryReques
 
 
 @router.post("/ensure_namespace/{provider_name}/{index_name}/{namespace}")
-async def ensure_namespace(provider_name: str, index_name: str, namespace: str,
-                          vector_db_service: VectorDBServiceInterface = Depends()):
+def ensure_namespace(provider_name: str, index_name: str, namespace: str,
+                     vector_db_service: VectorDBServiceInterface = Depends()):
     try:
         result = vector_db_service.ensure_namespace_exists(provider_name, index_name, namespace)
         return result
