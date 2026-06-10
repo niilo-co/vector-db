@@ -1,0 +1,197 @@
+{
+	"info": {
+		"name": "Vector DB API",
+		"description": "API para interactuar con Pinecone Vector Database - Niilo",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:9000",
+			"type": "string"
+		},
+		{
+			"key": "provider",
+			"value": "pinecone",
+			"type": "string"
+		},
+		{
+			"key": "index_name",
+			"value": "niilo-test",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Health Check",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/ms/vector-db/health",
+					"host": ["{{base_url}}"],
+					"path": ["api", "ms", "vector-db", "health"]
+				}
+			}
+		},
+		{
+			"name": "Create Index",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"index_name\": \"{{index_name}}\",\n  \"dimension\": 1536,\n  \"metric\": \"cosine\",\n  \"cloud\": \"aws\",\n  \"region\": \"us-east-1\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/ms/vector-db/create_index/{{provider}}",
+					"host": ["{{base_url}}"],
+					"path": ["api", "ms", "vector-db", "create_index", "{{provider}}"]
+				}
+			}
+		},
+		{
+			"name": "Ensure Namespace",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/ms/vector-db/ensure_namespace/{{provider}}/{{index_name}}/cursos",
+					"host": ["{{base_url}}"],
+					"path": ["api", "ms", "vector-db", "ensure_namespace", "{{provider}}", "{{index_name}}", "cursos"]
+				}
+			}
+		},
+		{
+			"name": "Upsert - Texto simple",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"namespace\": \"cursos\",\n  \"records\": [\n    {\n      \"id\": \"curso-001\",\n      \"data\": {\n        \"text\": \"Introducción al fundraising para startups en Latinoamérica. Este curso cubre cómo preparar un pitch deck, identificar inversionistas ángeles y fondos de venture capital en la región, y cómo estructurar una ronda pre-seed o seed.\"\n      },\n      \"metadata\": {\n        \"type\": \"course\",\n        \"category\": \"fundraising\",\n        \"author\": \"María González\"\n      }\n    },\n    {\n      \"id\": \"curso-002\",\n      \"data\": {\n        \"text\": \"Growth hacking para SaaS B2B. Estrategias de adquisición de usuarios, optimización de funnels de conversión, métricas clave como MRR, churn rate y LTV. Incluye casos de estudio de startups latinoamericanas que escalaron de 0 a 1M ARR.\"\n      },\n      \"metadata\": {\n        \"type\": \"course\",\n        \"category\": \"growth\",\n        \"author\": \"Carlos Mendoza\"\n      }\n    },\n    {\n      \"id\": \"curso-003\",\n      \"data\": {\n        \"text\": \"Legal y compliance para founders. Cómo constituir una empresa en Delaware vs. tu país local, acuerdos de accionistas, SAFE notes, term sheets, y regulaciones fiscales para startups con operaciones cross-border en Latam.\"\n      },\n      \"metadata\": {\n        \"type\": \"course\",\n        \"category\": \"legal\",\n        \"author\": \"Ana Rodríguez\"\n      }\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/ms/vector-db/upsert_data/{{provider}}/{{index_name}}",
+					"host": ["{{base_url}}"],
+					"path": ["api", "ms", "vector-db", "upsert_data", "{{provider}}", "{{index_name}}"]
+				}
+			}
+		},
+		{
+			"name": "Upsert - Múltiples campos",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"namespace\": \"articulos\",\n  \"records\": [\n    {\n      \"id\": \"art-001\",\n      \"data\": {\n        \"title\": \"Cómo validar tu idea de startup\",\n        \"description\": \"Guía práctica de validación en 2 semanas\",\n        \"content\": \"Usa entrevistas de problema, landing pages con Carrd, y ads de bajo presupuesto en Meta para medir intención de compra real antes de escribir una línea de código.\"\n      },\n      \"metadata\": {\n        \"type\": \"article\",\n        \"topic\": \"validacion\"\n      }\n    },\n    {\n      \"id\": \"art-002\",\n      \"data\": {\n        \"title\": \"Product-market fit\",\n        \"description\": \"Señales claras de que lo encontraste\",\n        \"content\": \"Retención orgánica mayor al 40% en semana 4, usuarios que recomiendan sin incentivos, y willingness to pay demostrado. El framework de Sean Ellis aplicado al contexto latinoamericano.\"\n      },\n      \"metadata\": {\n        \"type\": \"article\",\n        \"topic\": \"product-market-fit\"\n      }\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/ms/vector-db/upsert_data/{{provider}}/{{index_name}}",
+					"host": ["{{base_url}}"],
+					"path": ["api", "ms", "vector-db", "upsert_data", "{{provider}}", "{{index_name}}"]
+				}
+			}
+		},
+		{
+			"name": "Upsert - Con file URLs",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"namespace\": \"documentos\",\n  \"records\": [\n    {\n      \"id\": \"doc-001\",\n      \"data\": {\n        \"text\": \"Resumen del documento de onboarding para nuevos founders\"\n      },\n      \"metadata\": {\n        \"type\": \"document\",\n        \"source\": \"onboarding\"\n      },\n      \"file_urls\": [\n        \"https://example.com/files/onboarding-guide.pdf\"\n      ]\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/ms/vector-db/upsert_data/{{provider}}/{{index_name}}",
+					"host": ["{{base_url}}"],
+					"path": ["api", "ms", "vector-db", "upsert_data", "{{provider}}", "{{index_name}}"]
+				}
+			}
+		},
+		{
+			"name": "Search - Semántico",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"query\": \"cómo levantar capital para mi startup\",\n  \"top_k\": 3,\n  \"namespace\": \"cursos\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/ms/vector-db/search/{{provider}}/{{index_name}}",
+					"host": ["{{base_url}}"],
+					"path": ["api", "ms", "vector-db", "search", "{{provider}}", "{{index_name}}"]
+				}
+			}
+		},
+		{
+			"name": "Search - Con filtro metadata",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"query\": \"métricas de crecimiento SaaS\",\n  \"top_k\": 2,\n  \"namespace\": \"cursos\",\n  \"metadata_filter\": {\n    \"category\": \"growth\"\n  }\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/ms/vector-db/search/{{provider}}/{{index_name}}",
+					"host": ["{{base_url}}"],
+					"path": ["api", "ms", "vector-db", "search", "{{provider}}", "{{index_name}}"]
+				}
+			}
+		},
+		{
+			"name": "Search - Por IDs (fetch)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"ids\": [\"curso-001\", \"curso-002\"],\n  \"top_k\": 2,\n  \"namespace\": \"cursos\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/ms/vector-db/search/{{provider}}/{{index_name}}",
+					"host": ["{{base_url}}"],
+					"path": ["api", "ms", "vector-db", "search", "{{provider}}", "{{index_name}}"]
+				}
+			}
+		}
+	]
+}

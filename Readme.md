@@ -188,6 +188,54 @@ curl --location 'http://localhost:8000/vector-db/upsert_data/pinecone/startup' \
 }'
 ```
 
+#### Upsert Video Transcript
+
+Queues an Amazon Transcribe JSON transcript for async indexing into Pinecone.
+This endpoint works for LiveKit classes and other MP4 transcripts.
+It always uses:
+
+```text
+provider = pinecone
+index = dynamic-load
+namespace = niilo_db
+```
+
+```bash
+curl --location 'http://localhost:9000/api/ms/vector-db/upsert_video_transcript' \
+--header 'Content-Type: application/json' \
+--data '{
+    "id": "class-live/9junio/9junio_20260610_003733_be1ad19a_retry",
+    "transcript_json_url": "https://assets.niilo.co/class-live/9junio/9junio_20260610_003733_be1ad19a_retry/transcripts/transcript.json",
+    "hls_url": "https://assets.niilo.co/class-live/9junio/9junio_20260610_003733_be1ad19a_retry/hls/playlist.m3u8",
+    "data_type": "live_class_transcript",
+    "source_type": "live_class",
+    "metadata": {
+        "base_prefix": "class-live/9junio/9junio_20260610_003733_be1ad19a_retry",
+        "source_mp4_s3": "s3://niilo-prod/class-live/9junio/9junio_20260610_003733_be1ad19a_retry/source/recording.mp4",
+        "transcript_json_s3": "s3://niilo-prod/class-live/9junio/9junio_20260610_003733_be1ad19a_retry/transcripts/transcript.json",
+        "transcript_text_s3": "s3://niilo-prod/class-live/9junio/9junio_20260610_003733_be1ad19a_retry/transcripts/transcript.txt"
+    }
+}'
+```
+
+The response is immediate:
+
+```json
+{
+  "status": "ACCEPTED",
+  "message": "Transcript indexing queued",
+  "id": "class-live/9junio/9junio_20260610_003733_be1ad19a_retry",
+  "index_name": "dynamic-load",
+  "namespace": "niilo_db"
+}
+```
+
+The background task downloads the transcript JSON, chunks it with
+`start_time` / `end_time`, deletes existing chunks by `original_id`, and
+upserts fresh vectors with playback metadata. For non-LiveKit videos, send
+`video_url` instead of `hls_url` and use a different `data_type` /
+`source_type`, for example `video_transcript` / `video`.
+
 #### Search
 
 Performs a similarity search with optional metadata filters.

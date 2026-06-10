@@ -1,11 +1,48 @@
-from fastapi import APIRouter, HTTPException, Depends
-from app.models.models import IndexConfig, UpsertRequest, QueryRequest
+import logging
+
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, status
+from app.configurations.config import (
+    VIDEO_TRANSCRIPT_INDEX,
+    VIDEO_TRANSCRIPT_NAMESPACE,
+    VIDEO_TRANSCRIPT_PROVIDER,
+)
+from app.models.models import (
+    IndexConfig,
+    VideoTranscriptAcceptedResponse,
+    VideoTranscriptRequest,
+    UpsertRequest,
+    QueryRequest,
+)
+from app.services.vector_db_service import VectorDBService
 from app.services.vector_db_service_interface import VectorDBServiceInterface
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/api/ms/vector-db",
     tags=["vector-db"]
 )
+
+
+def get_video_transcript_vector_db_service() -> VectorDBServiceInterface:
+    return VectorDBService(VIDEO_TRANSCRIPT_PROVIDER)
+
+
+def run_video_transcript_indexing(
+    vector_db_service: VectorDBServiceInterface,
+    transcript_request: VideoTranscriptRequest,
+) -> None:
+    try:
+        vector_db_service.upsert_video_transcript(
+            VIDEO_TRANSCRIPT_INDEX,
+            VIDEO_TRANSCRIPT_NAMESPACE,
+            transcript_request,
+        )
+    except Exception:
+        logger.exception(
+            "Video transcript indexing failed for id=%s",
+            transcript_request.id,
+        )
 
 
 @router.post("/create_index/{provider_name}")
@@ -26,6 +63,28 @@ def upsert_data(provider_name: str, index_name: str, upsert_request: UpsertReque
         return {"message": f"Datos insertados exitosamente en el índice {index_name} de {provider_name}"}
     except Exception as e:
         raise HTTPException(status_code=400, detail="Error al insertar datos: " + str(e))
+
+
+@router.post(
+    "/upsert_video_transcript",
+    response_model=VideoTranscriptAcceptedResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def upsert_video_transcript(
+    transcript_request: VideoTranscriptRequest,
+    background_tasks: BackgroundTasks,
+    vector_db_service: VectorDBServiceInterface = Depends(get_video_transcript_vector_db_service),
+):
+    background_tasks.add_task(
+        run_video_transcript_indexing,
+        vector_db_service,
+        transcript_request,
+    )
+    return VideoTranscriptAcceptedResponse(
+        id=transcript_request.id,
+        index_name=VIDEO_TRANSCRIPT_INDEX,
+        namespace=VIDEO_TRANSCRIPT_NAMESPACE,
+    )
 
 
 @router.post("/search/{provider_name}/{index_name}")

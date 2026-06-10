@@ -1,5 +1,5 @@
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class IndexConfig(BaseModel):
@@ -28,3 +28,21 @@ class QueryRequest(BaseModel):
     top_k: int = 3
     namespace: str
     metadata_filter: dict = {}
+
+
+class VideoTranscriptRequest(BaseModel):
+    id: str
+    transcript_json_url: str
+    hls_url: Optional[str] = None
+    video_url: Optional[str] = None
+    data_type: str = "video_transcript"
+    source_type: str = "video"
+    metadata: dict = Field(default_factory=dict)
+
+
+class VideoTranscriptAcceptedResponse(BaseModel):
+    status: str = "ACCEPTED"
+    message: str = "Transcript indexing queued"
+    id: str
+    index_name: str
+    namespace: str

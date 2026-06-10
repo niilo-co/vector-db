@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from app.models.models import IndexConfig, UpsertRequest, QueryRequest
+from app.models.models import IndexConfig, VideoTranscriptRequest, UpsertRequest, QueryRequest
 from typing import List, Dict, Any
 
 
@@ -10,6 +10,15 @@ class VectorDBServiceInterface(ABC):
 
     @abstractmethod
     def upsert_data(self, provider_name: str, index_name: str, upsert_request: UpsertRequest):
+        pass
+
+    @abstractmethod
+    def upsert_video_transcript(
+        self,
+        index_name: str,
+        namespace: str,
+        transcript_request: VideoTranscriptRequest,
+    ):
         pass
 
     @abstractmethod

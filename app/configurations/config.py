@@ -12,6 +12,10 @@ CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "200"))
 CHUNK_THRESHOLD = int(os.getenv("CHUNK_THRESHOLD", "1000"))
 OPENAI_EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
 
+VIDEO_TRANSCRIPT_PROVIDER = "pinecone"
+VIDEO_TRANSCRIPT_INDEX = "dynamic-load"
+VIDEO_TRANSCRIPT_NAMESPACE = "niilo_db"
+
 # LLM-based PDF extraction (uses vision model to extract text from PDF pages)
 # Set to "true" to enable — uses OPENAI_API_KEY for the API call
 LLM_EXTRACTION_ENABLED = os.getenv("LLM_EXTRACTION_ENABLED", "false").lower() == "true"

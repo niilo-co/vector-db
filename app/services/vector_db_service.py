@@ -1,5 +1,5 @@
 from app.factories.vector_db_provider_factory import VectorDBProviderFactory
-from app.models.models import IndexConfig, UpsertRequest, QueryRequest
+from app.models.models import IndexConfig, VideoTranscriptRequest, UpsertRequest, QueryRequest
 from app.services.vector_db_service_interface import VectorDBServiceInterface
 from typing import List, Dict, Any, Optional
 
@@ -13,6 +13,18 @@ class VectorDBService(VectorDBServiceInterface):
 
     def upsert_data(self, provider_name: str, index_name: str, upsert_request: UpsertRequest):
         self.provider.upsert_data(index_name, upsert_request)
+
+    def upsert_video_transcript(
+        self,
+        index_name: str,
+        namespace: str,
+        transcript_request: VideoTranscriptRequest,
+    ):
+        return self.provider.upsert_video_transcript(
+            index_name,
+            namespace,
+            transcript_request,
+        )
 
     def search(self, provider_name: str, index_name: str, query_request: QueryRequest):
         return self.provider.search(index_name, query_request)
