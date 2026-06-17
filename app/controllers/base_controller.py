@@ -31,11 +31,12 @@ def get_video_transcript_vector_db_service() -> VectorDBServiceInterface:
 def run_video_transcript_indexing(
     vector_db_service: VectorDBServiceInterface,
     transcript_request: VideoTranscriptRequest,
+    namespace: str,
 ) -> None:
     try:
         vector_db_service.upsert_video_transcript(
             VIDEO_TRANSCRIPT_INDEX,
-            VIDEO_TRANSCRIPT_NAMESPACE,
+            namespace,
             transcript_request,
         )
     except Exception:
@@ -75,15 +76,17 @@ def upsert_video_transcript(
     background_tasks: BackgroundTasks,
     vector_db_service: VectorDBServiceInterface = Depends(get_video_transcript_vector_db_service),
 ):
+    namespace = transcript_request.namespace or VIDEO_TRANSCRIPT_NAMESPACE
     background_tasks.add_task(
         run_video_transcript_indexing,
         vector_db_service,
         transcript_request,
+        namespace,
     )
     return VideoTranscriptAcceptedResponse(
         id=transcript_request.id,
         index_name=VIDEO_TRANSCRIPT_INDEX,
-        namespace=VIDEO_TRANSCRIPT_NAMESPACE,
+        namespace=namespace,
     )
 
 

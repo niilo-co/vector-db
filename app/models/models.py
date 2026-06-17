@@ -35,6 +35,7 @@ class VideoTranscriptRequest(BaseModel):
     transcript_json_url: str
     hls_url: Optional[str] = None
     video_url: Optional[str] = None
+    namespace: Optional[str] = None
     data_type: str = "video_transcript"
     source_type: str = "video"
     metadata: dict = Field(default_factory=dict)
