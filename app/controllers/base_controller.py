@@ -7,6 +7,7 @@ from app.configurations.config import (
     VIDEO_TRANSCRIPT_PROVIDER,
 )
 from app.models.models import (
+    AgentVideoTranscriptRequest,
     IndexConfig,
     VideoTranscriptAcceptedResponse,
     VideoTranscriptRequest,
@@ -43,6 +44,33 @@ def run_video_transcript_indexing(
         logger.exception(
             "Video transcript indexing failed for id=%s",
             transcript_request.id,
+        )
+
+
+def run_agent_video_transcript_indexing(
+    vector_db_service: VectorDBServiceInterface,
+    transcript_request: AgentVideoTranscriptRequest,
+) -> None:
+    try:
+        vector_db_service.upsert_video_transcript(
+            transcript_request.index_name,
+            transcript_request.namespace,
+            VideoTranscriptRequest(
+                id=transcript_request.id,
+                transcript_json_url=transcript_request.transcript_json_url,
+                hls_url=transcript_request.hls_url,
+                video_url=transcript_request.video_url,
+                data_type=transcript_request.data_type,
+                source_type=transcript_request.source_type,
+                metadata=transcript_request.metadata,
+            ),
+        )
+    except Exception:
+        logger.exception(
+            "Agent video transcript indexing failed for id=%s index=%s namespace=%s",
+            transcript_request.id,
+            transcript_request.index_name,
+            transcript_request.namespace,
         )
 
 
@@ -87,6 +115,28 @@ def upsert_video_transcript(
         id=transcript_request.id,
         index_name=VIDEO_TRANSCRIPT_INDEX,
         namespace=namespace,
+    )
+
+
+@router.post(
+    "/upsert_agent_video_transcript",
+    response_model=VideoTranscriptAcceptedResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def upsert_agent_video_transcript(
+    transcript_request: AgentVideoTranscriptRequest,
+    background_tasks: BackgroundTasks,
+    vector_db_service: VectorDBServiceInterface = Depends(get_video_transcript_vector_db_service),
+):
+    background_tasks.add_task(
+        run_agent_video_transcript_indexing,
+        vector_db_service,
+        transcript_request,
+    )
+    return VideoTranscriptAcceptedResponse(
+        id=transcript_request.id,
+        index_name=transcript_request.index_name,
+        namespace=transcript_request.namespace,
     )
 
 
