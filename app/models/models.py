@@ -41,6 +41,18 @@ class VideoTranscriptRequest(BaseModel):
     metadata: dict = Field(default_factory=dict)
 
 
+class AgentVideoTranscriptRequest(BaseModel):
+    id: str
+    transcript_json_url: str
+    namespace: str
+    index_name: str = "dynamic-agents"
+    hls_url: Optional[str] = None
+    video_url: Optional[str] = None
+    data_type: str = "live_class_transcript"
+    source_type: str = "live_class"
+    metadata: dict = Field(default_factory=dict)
+
+
 class VideoTranscriptAcceptedResponse(BaseModel):
     status: str = "ACCEPTED"
     message: str = "Transcript indexing queued"
