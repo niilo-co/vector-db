@@ -195,19 +195,34 @@ class FileProcessorService:
             if chunk:
                 yield "".join(chunk)
             
+    @staticmethod
+    def _csv_delimiter(sample: str) -> str:
+        """Most CSVs use ',', the legacy files use ';'. The first row stays the header."""
+        try:
+            return csv.Sniffer().sniff(sample, delimiters=',;\t|').delimiter
+        except csv.Error:
+            return ';' if sample.count(';') > sample.count(',') else ','
+
     def _read_csv_in_chunks(self, file_path: str, chunk_size_rows: int = 50, max_chunk_chars: int = 30000):
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-            reader = csv.DictReader(f, delimiter=';')
+            delimiter = self._csv_delimiter(f.read(64 * 1024))
+            f.seek(0)
+            reader = csv.DictReader(f, delimiter=delimiter)
             chunk_rows_data = []
             current_chunk_size = 0
-            
-            # Columnas clave para el texto del embedding (puedes ajustarlas)
+
+            # Legacy files are embedded from these columns; any other CSV uses every column.
             key_columns_for_embedding = ['Status', 'Name', 'Lastname', 'Startup', 'Email', 'Call']
 
             for row in reader:
                 # 1. Crear el texto para el embedding (corto y conciso)
                 embedding_values = [str(row.get(col, '')) for col in key_columns_for_embedding if row.get(col)]
-                embedding_text = " | ".join(embedding_values)
+                if not embedding_values:
+                    embedding_values = [f"{k}: {v}".strip() for k, v in row.items()
+                                        if k is not None and v not in (None, '') and str(v).strip()]
+                embedding_text = " | ".join(embedding_values)[:2000]
+                if not embedding_text.strip():
+                    continue  # An empty row has nothing to embed (the embeddings API rejects it).
                 row_size = len(embedding_text)
 
                 # 2. Guardar la fila completa como metadatos
