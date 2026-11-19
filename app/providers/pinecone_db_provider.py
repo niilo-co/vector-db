@@ -371,7 +371,10 @@ class PineconeDBProvider(VectorDBProvider):
         for record in records:
             # Verificar si record.data["text"] es una lista (para archivos grandes procesados en chunks)
             text_content = record.data.get('text') if hasattr(record, 'data') and isinstance(record.data, dict) else None
-            is_chunked_list = isinstance(text_content, list)
+            # CSV arrives as a list of row groups (lists of {"text", "metadata"} dicts);
+            # TXT/MD/PDF stream as a flat list of strings and use the branch below.
+            is_chunked_list = isinstance(text_content, list) and bool(text_content) and all(
+                isinstance(group, list) for group in text_content)
 
             if is_chunked_list: # Este es el caso para CSV
                 # `text_content` es ahora una lista de listas de diccionarios
