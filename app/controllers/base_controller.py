@@ -88,8 +88,11 @@ def create_index(provider_name: str, config: IndexConfig,
 def upsert_data(provider_name: str, index_name: str, upsert_request: UpsertRequest,
                 vector_db_service: VectorDBServiceInterface = Depends()):
     try:
-        vector_db_service.upsert_data(provider_name, index_name, upsert_request)
-        return {"message": f"Datos insertados exitosamente en el índice {index_name} de {provider_name}"}
+        result = vector_db_service.upsert_data(provider_name, index_name, upsert_request)
+        response = {"message": f"Datos insertados exitosamente en el índice {index_name} de {provider_name}"}
+        if upsert_request.require_file_content:
+            response["indexed_file_urls"] = result["indexed_file_urls"]
+        return response
     except Exception as e:
         raise HTTPException(status_code=400, detail="Error al insertar datos: " + str(e))
 

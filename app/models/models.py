@@ -20,6 +20,7 @@ class DataItem(BaseModel):
 class UpsertRequest(BaseModel):
     namespace: str
     records: List[DataItem]
+    require_file_content: bool = False
 
 
 class QueryRequest(BaseModel):

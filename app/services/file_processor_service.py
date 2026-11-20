@@ -23,7 +23,7 @@ class FileProcessorService:
             self._llm_extractor = LLMExtractorService()
         return self._llm_extractor
     
-    def process_file_urls_to_records(self, file_urls: List[str], base_record_id: str, base_metadata: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def process_file_urls_to_records(self, file_urls: List[str], base_record_id: str, base_metadata: Dict[str, Any], strict: bool = False) -> List[Dict[str, Any]]:
         if not file_urls:
             return []
         
@@ -56,6 +56,8 @@ class FileProcessorService:
                             }
                         })
                 except Exception as e:
+                    if strict:
+                        raise
                     print(f"Error processing {url}: {e}")
         
         return file_records

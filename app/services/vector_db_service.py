@@ -12,7 +12,7 @@ class VectorDBService(VectorDBServiceInterface):
         self.provider.create_index(config)
 
     def upsert_data(self, provider_name: str, index_name: str, upsert_request: UpsertRequest):
-        self.provider.upsert_data(index_name, upsert_request)
+        return self.provider.upsert_data(index_name, upsert_request)
 
     def upsert_video_transcript(
         self,

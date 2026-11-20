@@ -46,6 +46,8 @@ class PineconeDBProvider(VectorDBProvider):
 
     def upsert_data(self, index_name: str, upsert_request: UpsertRequest):
         index = self.pc.Index(index_name)
+        if upsert_request.require_file_content:
+            return self._upsert_required_files(index, upsert_request)
         
         all_records = []
         
@@ -69,6 +71,63 @@ class PineconeDBProvider(VectorDBProvider):
             return self._upsert_data_batched(index, modified_request)
         
         return self._upsert_data_optimized(index, modified_request)
+
+    def _upsert_required_files(self, index, request: UpsertRequest):
+        if not 1 <= len(request.records) <= 20:
+            raise ValueError("Strict file indexing requires 1 to 20 records")
+        if any(len(record.file_urls or []) != 1 for record in request.records):
+            raise ValueError("Strict file indexing requires one URL per record")
+        original_ids = [record.id for record in request.records]
+        urls = [record.file_urls[0] for record in request.records]
+        if len(set(original_ids)) != len(original_ids) or len(set(urls)) != len(urls):
+            raise ValueError("Strict file indexing requires unique record IDs and URLs")
+
+        chunks = []
+        prefixes = []
+        for record in request.records:
+            file_records = self.file_processor.process_file_urls_to_records(
+                record.file_urls, record.id, record.metadata, strict=True,
+            )
+            if len(file_records) != 1:
+                raise ValueError(f"No extracted content for record {record.id}")
+            file_record = DataItem(**file_records[0])
+            text = file_record.data.get("text")
+            # Keep source URLs in metadata, never substitute them for document text.
+            if isinstance(text, str):
+                file_record.data["text"] = [text]
+            file_chunks = [
+                chunk for chunk in self._process_records_to_chunks([file_record])
+                if isinstance(chunk["text"], str) and chunk["text"].strip()
+            ]
+            if not file_chunks:
+                raise ValueError(f"No extracted text for record {record.id}")
+            prefix = f"file_{hashlib.sha256(record.id.encode('utf-8')).hexdigest()}_chunk_"
+            prefixes.append(prefix)
+            chunk_ids = {chunk["id"]: f"{prefix}{i}" for i, chunk in enumerate(file_chunks)}
+            for chunk in file_chunks:
+                chunk["id"] = chunk_ids[chunk["id"]]
+                for neighbor in ("prev_chunk_id", "next_chunk_id"):
+                    previous_id = chunk["metadata"].pop(neighbor, None)
+                    if previous_id in chunk_ids:
+                        chunk["metadata"][neighbor] = chunk_ids[previous_id]
+            chunks.extend(file_chunks)
+
+        embeddings = self._create_embeddings_for_chunks(chunks)
+        if len(embeddings) != len(chunks) or any(not embedding for embedding in embeddings):
+            raise ValueError("Missing embeddings for extracted file content")
+        vectors = self._build_vectors_from_chunks_and_embeddings(chunks, embeddings)
+        existing_ids = {
+            vector_id
+            for prefix in prefixes
+            for page in index.list(prefix=prefix, namespace=request.namespace)
+            for vector_id in page
+        }
+        self._upsert_vectors_in_batches(index, request.namespace, vectors)
+        # Identical concurrent retries retain the same IDs; never delete their new chunks.
+        stale_ids = sorted(existing_ids - {vector["id"] for vector in vectors})
+        for offset in range(0, len(stale_ids), 1000):
+            index.delete(ids=stale_ids[offset:offset + 1000], namespace=request.namespace)
+        return {"indexed_file_urls": urls}
 
     def upsert_video_transcript(
         self,
