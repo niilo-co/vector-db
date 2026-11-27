@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class FileProcessorService:
     def __init__(self):
-        self.supported_extensions = {'.txt', '.md', '.pdf', '.docx', '.html', '.csv', '.jsonl'}
+        self.supported_extensions = {'.txt', '.md', '.pdf', '.docx', '.html', '.csv', '.jsonl', '.xlsx'}
         self.max_file_size = 50 * 1024 * 1024  # 50MB
         self.timeout = 30
         self._llm_extractor = None
@@ -180,6 +180,9 @@ class FileProcessorService:
             # Para CSVs grandes, no leemos todo a memoria
             # Devolvemos un generador que procesa el archivo en chunks
             return self._read_csv_in_chunks(file_path)
+
+        elif file_extension == '.xlsx':
+            return self._read_xlsx_in_chunks(file_path)
             
         else:
             raise ValueError(f"Unsupported file extension: {file_extension}")
@@ -194,6 +197,33 @@ class FileProcessorService:
                     chunk = []
             if chunk:
                 yield "".join(chunk)
+
+    def _read_xlsx_in_chunks(self, file_path: str):
+        from openpyxl import load_workbook
+        workbook = load_workbook(file_path, read_only=True, data_only=True)
+        try:
+            for sheet in workbook.worksheets:
+                rows = [row for row in sheet.iter_rows(values_only=True) if any(cell is not None for cell in row)]
+                if not rows:
+                    continue
+                width = max(len(row) for row in rows)
+                columns = []
+                for position, name in enumerate(['Hoja', *rows[0], *[None] * (width - len(rows[0]))]):
+                    column = (str(name).strip() if name is not None else '') or f'Columna {position}'
+                    while column in columns:
+                        column = f'{column} ({position})'
+                    columns.append(column)
+                descriptor, sheet_csv = tempfile.mkstemp(suffix='.csv')
+                try:
+                    with os.fdopen(descriptor, 'w', newline='', encoding='utf-8') as output:
+                        writer = csv.writer(output, quoting=csv.QUOTE_ALL)
+                        writer.writerow(columns)
+                        writer.writerows([sheet.title, *('' if cell is None else cell for cell in row)] for row in rows[1:])
+                    yield from self._read_csv_in_chunks(sheet_csv, legacy_columns=False)
+                finally:
+                    os.unlink(sheet_csv)
+        finally:
+            workbook.close()
             
     @staticmethod
     def _csv_delimiter(sample: str) -> str:
@@ -203,7 +233,7 @@ class FileProcessorService:
         except csv.Error:
             return ';' if sample.count(';') > sample.count(',') else ','
 
-    def _read_csv_in_chunks(self, file_path: str, chunk_size_rows: int = 50, max_chunk_chars: int = 30000):
+    def _read_csv_in_chunks(self, file_path: str, chunk_size_rows: int = 50, max_chunk_chars: int = 30000, legacy_columns: bool = True):
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
             delimiter = self._csv_delimiter(f.read(64 * 1024))
             f.seek(0)
@@ -212,7 +242,7 @@ class FileProcessorService:
             current_chunk_size = 0
 
             # Legacy files are embedded from these columns; any other CSV uses every column.
-            key_columns_for_embedding = ['Status', 'Name', 'Lastname', 'Startup', 'Email', 'Call']
+            key_columns_for_embedding = ['Status', 'Name', 'Lastname', 'Startup', 'Email', 'Call'] if legacy_columns else []
 
             for row in reader:
                 # 1. Crear el texto para el embedding (corto y conciso)
